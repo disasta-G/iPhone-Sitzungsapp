@@ -222,6 +222,10 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .toast { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); background: var(--bg3); border: 0.5px solid var(--border2); color: var(--text); padding: 10px 20px; border-radius: 20px; font-size: 13px; opacity: 0; transition: opacity .25s; pointer-events: none; white-space: nowrap; z-index: 99; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 .toast.show { opacity: 1; }
 .toast.err { border-color: var(--red); color: var(--red); }
+
+.btn-upload { width: 100%; padding: 13px; background: transparent; border: 0.5px solid var(--border2); border-radius: var(--radius); font-size: 15px; font-weight: 500; color: var(--text2); font-family: 'DM Sans', sans-serif; cursor: pointer; margin-top: 10px; }
+.btn-upload:active { background: var(--bg3); }
+.upload-hint { font-size: 11px; color: var(--text3); text-align: center; margin-top: 6px; padding: 0 20px; line-height: 1.4; }
 </style>
 </head>
 <body>
@@ -245,6 +249,9 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
     </div>
   </div>
   <button class="btn-start" id="btn-start" onclick="handleStart()">Sitzung starten</button>
+  <input type="file" id="inp-audio-file" accept=".m4a,.mp4,.wav,.aac,.ogg,audio/*" style="display:none" onchange="onAudioFileSelected(this)">
+  <button class="btn-upload" onclick="document.getElementById('inp-audio-file').click()">Aufnahme hochladen</button>
+  <div class="upload-hint">Sprachmemos → Teilen → In Dateien sichern → iCloud Drive</div>
 </div>
 
 <!-- RECORD -->
@@ -429,10 +436,34 @@ loadProjekte();
 })();
 
 async function handleStart(){
-  // Falls Projekte noch nicht geladen sind, schnell nachladen
   if (!S.connected) await loadProjekte();
   if (!S.connected) { toast('Keine Verbindung zum Server', true); return; }
   startSession();
+}
+
+async function onAudioFileSelected(input){
+  const file = input.files[0];
+  if(!file) return;
+  const projekt = document.getElementById('inp-projekt').value.trim();
+  if(!projekt){ toast('Zuerst Projekt eingeben', true); input.value=''; return; }
+  if(!S.connected) await loadProjekte();
+  if(!S.connected){ toast('Keine Verbindung zum Server', true); return; }
+  S.uploadedFile = file;
+  S.projekt = projekt; S.ordner = projekt;
+  S.anwesende = document.getElementById('inp-anwesende').value.trim() || 'Nicht angegeben';
+  S.datum = fmtDate(); S.datumFile = fmtDateFile(); S.zeit = fmtTime();
+  S.audioChunks = []; S.photos = []; S.photoTimestamps = [];
+  S.checkedPends = []; S.hiddenPends = [];
+  toast('Datei geladen: ' + file.name);
+  try{
+    const d = await api('/pendenzen?projekt='+encodeURIComponent(S.ordner));
+    S.pendenzList = d.pendenzen || [];
+  }catch(e){ S.pendenzList = []; }
+  renderPendenzen();
+  S.participantsList = S.anwesende.split(',').map(s=>s.trim()).filter(Boolean);
+  renderParticipants();
+  show('s-participants');
+  input.value = '';
 }
 
 // Projekt-Suche (Volltext)
@@ -485,7 +516,7 @@ async function startSession(){
   S.datum = fmtDate(); S.datumFile = fmtDateFile();
   S.zeit = fmtTime();
   S.audioChunks = []; S.photos = []; S.photoTimestamps = [];
-  S.checkedPends = []; S.hiddenPends = [];
+  S.checkedPends = []; S.hiddenPends = []; S.uploadedFile = null;
   document.getElementById('rec-proj').textContent = S.projekt;
   document.getElementById('rec-sub').textContent = S.anwesende + ' · ' + S.datum;
   document.getElementById('foto-thumbs').innerHTML = '';
@@ -557,6 +588,22 @@ function initSwipes(){
   });
 }
 
+// --- Wake Lock ---
+let wakeLock = null;
+async function requestWakeLock(){
+  try{
+    if('wakeLock' in navigator){ wakeLock = await navigator.wakeLock.request('screen'); }
+  }catch(e){ console.warn('[WakeLock] nicht verfügbar:', e.message); }
+}
+function releaseWakeLock(){
+  if(wakeLock){ wakeLock.release(); wakeLock = null; }
+}
+document.addEventListener('visibilitychange', async()=>{
+  if(document.visibilityState==='visible' && S.mediaRecorder && S.mediaRecorder.state==='recording'){
+    await requestWakeLock();
+  }
+});
+
 async function startRecording(){
   try{
     const stream = await navigator.mediaDevices.getUserMedia({audio:{sampleRate:16000,channelCount:1,echoCancellation:true,noiseSuppression:true}});
@@ -568,6 +615,7 @@ async function startRecording(){
     S.seconds = 0;
     S.timerInt = setInterval(()=>{ S.seconds++; document.getElementById('rec-timer').textContent=fmtTimer(S.seconds); },1000);
     startAudioPulse(stream);
+    await requestWakeLock();
   }catch(e){ toast('Mikrofon-Fehler: '+e.message, true); }
 }
 
@@ -682,6 +730,7 @@ function addPhotos(input){
       done().style.opacity='1';
       clearInterval(S.timerInt);
       stopAudioPulse();
+      releaseWakeLock();
       if(S.audioStream) S.audioStream.getTracks().forEach(t=>t.stop());
       if(S.mediaRecorder && S.mediaRecorder.state!=='inactive'){ S.mediaRecorder.stop(); }
       setTimeout(endRecordingFlow,600);
@@ -822,9 +871,16 @@ async function processSession(){
     s.querySelector('.step-text').className = 'step-text'+(i===0?' active':'');
   });
   try{
-    const blob = new Blob(S.audioChunks, {type:'audio/webm'});
+    let audioBlob, audioName;
+    if(S.uploadedFile){
+      audioBlob = S.uploadedFile;
+      audioName = S.uploadedFile.name;
+    } else {
+      audioBlob = new Blob(S.audioChunks, {type:'audio/webm'});
+      audioName = 'sitzung.webm';
+    }
     const fd = new FormData();
-    fd.append('audio', blob, 'sitzung.webm');
+    fd.append('audio', audioBlob, audioName);
     fd.append('projekt', S.ordner);
     fd.append('anwesende', S.anwesende);
     S.photos.forEach((p,i)=>{
