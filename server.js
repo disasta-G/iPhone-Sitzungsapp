@@ -51,9 +51,11 @@ const sessions = {};
 app.use(express.json({ limit: '10mb' }));
 
 app.get('/version', (req, res) => {
-  const pad = n => String(n).padStart(2, '0');
-  const d = SERVER_START;
-  const deployed = `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const deployed = SERVER_START.toLocaleString('de-CH', {
+    timeZone: 'Europe/Zurich',
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
   res.json({ version: '2.1', deployed });
 });
 
