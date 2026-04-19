@@ -234,12 +234,12 @@ function buildSystemPrompt(projektTyp) {
 - "Beschlüsse": Getroffene Entscheidungen, Vereinbarungen
 - "Bemerkungen": Alles Übrige, Unklar-Formuliertes, Fragmente`;
 
-  const regeln = `WICHTIGSTE REGEL: Im Zweifel immer extrahieren. Lieber zu viel als zu wenig.
+  const regeln = `WICHTIGSTE REGEL: Im Zweifel immer extrahieren — lieber zu viel als zu wenig.
 
-WEITERE REGELN:
-- Jeden erkennbaren Inhalt erfassen — auch Fragmente, Halbsätze, unklare Aussagen.
-- Was unklar ist, kommt unter "Bemerkungen" mit konservativer Formulierung.
-- Nichts erfinden. Aber alles was im Transkript steht oder andeutungsweise erkennbar ist, aufnehmen.
+REGELN:
+- Nur aus dem Transkript — nichts erfinden, nichts ableiten was nicht gesagt wurde.
+- Auch Fragmente und unklare Aussagen aufnehmen: unter "Bemerkungen", wörtlich nah formuliert.
+- Personen nur namentlich nennen wenn der Name im Transkript vorkommt.
 - Schweizerdeutsch/Hochdeutsch → sauberes Schriftdeutsch.
 - Antworte NUR mit einem gültigen JSON-Array, kein Markdown, keine Erklärung.`;
 
