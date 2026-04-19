@@ -227,39 +227,28 @@ function calcMaxTokens(promptText, ceiling = 8192) {
 // ======== System-Prompt je Projekt-Typ ========
 function buildSystemPrompt(projektTyp) {
   const kategorien = `Kategorien (exakt eine davon verwenden):
-- "Traktanden / Themen": Was wurde besprochen
-- "Mängel & Pendenzen": Offene Punkte, Mängel, Aufgaben
-- "Ausgeführte Arbeiten": Was bereits ausgeführt wurde
-- "Nächste Schritte": Was als nächstes getan wird
-- "Beschlüsse": Getroffene Entscheidungen
-- "Bemerkungen": Sonstiges, Informationen`;
+- "Traktanden / Themen": Besprochene Themen, Sachverhalte, Informationen
+- "Mängel & Pendenzen": Offene Punkte, Mängel, Aufgaben, Probleme
+- "Ausgeführte Arbeiten": Was bereits erledigt oder ausgeführt wurde
+- "Nächste Schritte": Was als nächstes getan wird, geplante Massnahmen
+- "Beschlüsse": Getroffene Entscheidungen, Vereinbarungen
+- "Bemerkungen": Alles Übrige, Unklar-Formuliertes, Fragmente`;
 
-  const regeln = `REGELN:
-- Nur dokumentieren was im Transkript steht. Nichts erfinden oder ergänzen.
-- Wenn Inhalte unklar sind, formuliere konservativ — extrahiere trotzdem alles Erkennbare.
+  const regeln = `WICHTIGSTE REGEL: Im Zweifel immer extrahieren. Lieber zu viel als zu wenig.
+
+WEITERE REGELN:
+- Jeden erkennbaren Inhalt erfassen — auch Fragmente, Halbsätze, unklare Aussagen.
+- Was unklar ist, kommt unter "Bemerkungen" mit konservativer Formulierung.
+- Nichts erfinden. Aber alles was im Transkript steht oder andeutungsweise erkennbar ist, aufnehmen.
 - Schweizerdeutsch/Hochdeutsch → sauberes Schriftdeutsch.
-- Personen nur nennen wenn im Transkript klar erkennbar.
-- Gib IMMER ein JSON-Array zurück, auch wenn der Inhalt spärlich ist.
 - Antworte NUR mit einem gültigen JSON-Array, kein Markdown, keine Erklärung.`;
 
-  if (projektTyp === 'privat') {
-    return `Du bist ein präziser Protokollant für private Besprechungen.
+  const hlksKontext = projektTyp === 'hlks'
+    ? `\nFachgebiet: Heizung, Lüftung, Klima, Sanitär (HLKS), Baustelle, Giovanoli Gebäudetechnik GmbH (Kanton Graubünden).`
+    : projektTyp === 'vr' ? `\nKontext: Verwaltungsrats- oder Geschäftssitzung.`
+    : `\nKontext: Private Besprechung.`;
 
-${kategorien}
-
-${regeln}`;
-  }
-
-  if (projektTyp === 'vr') {
-    return `Du bist ein präziser Protokollant für Verwaltungsrats- und Geschäftssitzungen.
-
-${kategorien}
-
-${regeln}`;
-  }
-
-  return `Du bist ein präziser Protokollant für Baustellen-Sitzungen bei Giovanoli Gebäudetechnik GmbH (HLKS-Planung, Kanton Graubünden).
-Fachgebiet: Heizung, Lüftung, Klima, Sanitär (HLKS).
+  return `Du bist Protokollant und sammelst ALLE erkennbaren Inhalte aus einem Gesprächs-Transkript.${hlksKontext}
 
 ${kategorien}
 
@@ -368,7 +357,7 @@ ${fotoKontext ? '\nFOTO-KONTEXT:\n' + fotoKontext : ''}
 ${erledigte.length ? '\nFOLGENDE PENDENZEN WURDEN IN DIESER SITZUNG ALS ERLEDIGT MARKIERT:\n' + erledigte.map(t => `- ${t}`).join('\n') : ''}
 ${projektKontext}
 
-Extrahiere alle Themen als JSON-Array. Felder pro Eintrag: text (präzise, 1-2 Sätze), kategorie (eine der definierten), verantwortlich (Name oder ""), termin (Datum/Frist oder ""), prio ("hoch"/"mittel"/"niedrig").`;
+Extrahiere ALLE erkennbaren Inhalte als JSON-Array — auch Fragmente und unklare Aussagen. Felder: text (1-2 Sätze, konservativ formuliert), kategorie (eine der definierten), verantwortlich (Name oder ""), termin (Datum/Frist oder ""), prio ("hoch"/"mittel"/"niedrig"). Im Zweifel extrahieren.`;
 
     const maxTok = calcMaxTokens(systemPrompt + userContent);
     console.log(`[themen] Projekt="${s.projekt}" Typ=${projektTyp} Segmente=${segments.length} maxTok=${maxTok} Kontext=${projektKontext.length}ch`);
