@@ -159,6 +159,8 @@ function detectProjektTyp(projektName) {
 
 // ======== Datei-Zusammenfassung für Kontext ========
 function extractFileSummary(content, filename) {
+  // Rohtranskript-Callout entfernen bevor Kontext extrahiert wird
+  content = content.replace(/^>\s*\[!note\]-?\s*Rohtranskript[\s\S]*?(?=\n(?!>)|\n*$)/m, '').trim();
   const lines = content.split('\n');
   const parts = [];
 
