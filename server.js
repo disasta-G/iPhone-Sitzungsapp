@@ -495,6 +495,18 @@ app.post('/bericht', async (req, res) => {
 
     md += `*Erstellt: ${datum} um ${zeit} Uhr*\n`;
 
+    // ===== Rohtranskript (eingeklappt) =====
+    const segments = s.transkript?.segments || [];
+    if (segments.length) {
+      md += `\n> [!note]- Rohtranskript (Whisper)\n`;
+      segments.forEach(seg => {
+        const speaker = seg.speaker || 'SPEAKER';
+        const text = (seg.text || '').trim();
+        if (text) md += `> [${speaker}] ${text}\n`;
+      });
+      md += '\n';
+    }
+
     // ===== Datei speichern =====
     const sitzungenDir = path.join(VAULT, '01-Projekte', s.projekt, 'Sitzungen');
     fsSync.mkdirSync(sitzungenDir, { recursive: true });
