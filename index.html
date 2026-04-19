@@ -229,7 +229,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 <!-- SETUP -->
 <div class="screen active" id="s-setup">
   <div class="screen-header">
-    <div class="wordmark">Giovanoli Gebäudetechnik · v2.1</div>
+    <div class="wordmark" id="wordmark">Giovanoli Gebäudetechnik · v2.1</div>
     <div class="h-title">Neue<br><span>Sitzung</span></div>
   </div>
   <div class="setup-body">
@@ -418,6 +418,16 @@ async function loadProjekte(){
   }
 }
 loadProjekte();
+
+// Deploy-Zeit im Wordmark anzeigen
+(async()=>{
+  try{
+    const r = await fetch(S.backend.replace('/api','')+'/version');
+    const {version, deployed} = await r.json();
+    const el = document.getElementById('wordmark');
+    if(el) el.textContent = `Giovanoli Gebäudetechnik · v${version} · ${deployed}`;
+  } catch(_){}
+})();
 
 async function handleStart(){
   // Falls Projekte noch nicht geladen sind, schnell nachladen

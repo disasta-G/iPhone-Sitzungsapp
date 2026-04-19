@@ -18,6 +18,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const Replicate = require('replicate');
 
 const app = express();
+const SERVER_START = new Date();
 const PORT = process.env.PORT || 3001;
 const VAULT = process.env.VAULT_PATH;
 const API_SECRET = process.env.API_SECRET;
@@ -48,6 +49,14 @@ const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } });
 const sessions = {};
 
 app.use(express.json({ limit: '10mb' }));
+
+app.get('/version', (req, res) => {
+  const pad = n => String(n).padStart(2, '0');
+  const d = SERVER_START;
+  const deployed = `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  res.json({ version: '2.1', deployed });
+});
+
 app.use((req, res, next) => {
   const secret = req.headers['x-api-secret'];
   if (secret !== API_SECRET) return res.status(401).json({ error: 'Unauthorized' });
@@ -358,6 +367,7 @@ ${projektKontext}
 Extrahiere alle Themen als JSON-Array. Felder pro Eintrag: text (präzise, 1-2 Sätze), kategorie (eine der definierten), verantwortlich (Name oder ""), termin (Datum/Frist oder ""), prio ("hoch"/"mittel"/"niedrig").`;
 
     const maxTok = calcMaxTokens(systemPrompt + userContent);
+    console.log(`[themen] Projekt="${s.projekt}" Typ=${projektTyp} Segmente=${segments.length} maxTok=${maxTok} Kontext=${projektKontext.length}ch`);
 
     const resp = await anthropic.messages.create({
       model: 'claude-opus-4-6',
@@ -367,15 +377,18 @@ Extrahiere alle Themen als JSON-Array. Felder pro Eintrag: text (präzise, 1-2 S
     });
 
     let text = resp.content[0].text.trim();
+    console.log(`[themen] API-Antwort (${text.length}ch): ${text.substring(0, 200)}`);
     text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
     let topics = [];
     try { topics = JSON.parse(text); } catch (e) {
+      console.error('[themen] JSON.parse fehlgeschlagen:', e.message, '| Text:', text.substring(0, 300));
       const m = text.match(/\[[\s\S]*\]/);
       if (m) topics = JSON.parse(m[0]);
     }
+    console.log(`[themen] Topics gefunden: ${topics.length}`);
     s.topics = topics;
     res.json({ topics });
-  } catch (e) { console.error('themen:', e); res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error('[themen] Fehler:', e.message, e.status || ''); res.status(500).json({ error: e.message }); }
 });
 
 app.post('/bericht', async (req, res) => {
