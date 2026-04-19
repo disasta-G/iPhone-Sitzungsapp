@@ -234,8 +234,10 @@ function buildSystemPrompt(projektTyp) {
 
   const regeln = `REGELN:
 - Nur dokumentieren was im Transkript steht. Nichts erfinden oder ergänzen.
+- Wenn Inhalte unklar sind, formuliere konservativ — extrahiere trotzdem alles Erkennbare.
 - Schweizerdeutsch/Hochdeutsch → sauberes Schriftdeutsch.
 - Personen nur nennen wenn im Transkript klar erkennbar.
+- Gib IMMER ein JSON-Array zurück, auch wenn der Inhalt spärlich ist.
 - Antworte NUR mit einem gültigen JSON-Array, kein Markdown, keine Erklärung.`;
 
   if (projektTyp === 'privat') {
