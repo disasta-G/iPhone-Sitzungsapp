@@ -461,73 +461,55 @@ app.post('/bericht', async (req, res) => {
     md += `---\n\n`;
 
     // Traktanden / Themen
-    md += `## 📋 Traktanden / Themen\n\n`;
     const traktanden = byKat['Traktanden / Themen'] || [];
-    if (traktanden.length) {
-      traktanden.forEach(t => md += `- ${t.text}\n`);
-    } else {
-      // Alle anderen Themen als Traktanden-Übersicht auflisten
-      const andereThemen = selected.filter(t => t.kategorie !== 'Traktanden / Themen' && t.kategorie !== 'Bemerkungen');
-      if (andereThemen.length) {
-        andereThemen.slice(0, 5).forEach(t => md += `- ${t.text.split('.')[0].substring(0, 80)}\n`);
-      } else {
-        md += `- \n`;
-      }
+    const andereThemen = selected.filter(t => t.kategorie !== 'Traktanden / Themen' && t.kategorie !== 'Bemerkungen');
+    const traktandenInhalt = traktanden.length ? traktanden : andereThemen.slice(0, 5);
+    if (traktandenInhalt.length) {
+      md += `## 📋 Traktanden / Themen\n\n`;
+      traktandenInhalt.forEach(t => md += `- ${t.text.split('.')[0].substring(0, 80)}\n`);
+      md += `\n---\n\n`;
     }
-    md += `\n---\n\n`;
 
     // Besprochenes & Entscheide
-    md += `## 🔨 Besprochenes & Entscheide\n\n`;
     const besprochenes = [...(byKat['Ausgeführte Arbeiten']||[]), ...(byKat['Beschlüsse']||[])];
     if (besprochenes.length) {
+      md += `## 🔨 Besprochenes & Entscheide\n\n`;
       besprochenes.forEach(t => {
         const meta = [t.verantwortlich, t.termin].filter(Boolean).join(', ');
         md += `- ${t.text}${meta ? ` *(${meta})*` : ''}\n`;
       });
-    } else {
-      md += `- \n`;
+      md += `\n---\n\n`;
     }
-    md += `\n---\n\n`;
 
     // Aufgaben / Pendenzen
-    md += `## ✅ Aufgaben / Pendenzen\n\n`;
-    // Erst erledigte aus vorherigen Sitzungen
-    if (erledigteTexte.length) {
-      erledigteTexte.forEach(t => md += `- [x] ${t} ✅\n`);
-    }
-    // Dann neue offene
     const neuePendenzen = [...(byKat['Mängel & Pendenzen']||[]), ...(byKat['Nächste Schritte']||[])];
-    if (neuePendenzen.length) {
+    if (erledigteTexte.length || neuePendenzen.length) {
+      md += `## ✅ Aufgaben / Pendenzen\n\n`;
+      erledigteTexte.forEach(t => md += `- [x] ${t} ✅\n`);
       neuePendenzen.forEach(t => {
         const meta = [t.verantwortlich, t.termin].filter(Boolean).join(', ');
         md += `- [ ] ${t.text}${meta ? ` *(${meta})*` : ''}\n`;
       });
-    } else if (!erledigteTexte.length) {
-      md += `- [ ] \n`;
+      md += `\n---\n\n`;
     }
-    md += `\n---\n\n`;
 
     // Fotos / Anhänge
-    md += `## 📸 Fotos / Anhänge\n\n`;
     if (s.fotoAnalysen.length) {
+      md += `## 📸 Fotos / Anhänge\n\n`;
       s.fotoAnalysen.forEach((f, i) => {
         const zeit = `${Math.floor(f.timestamp/60)}:${String(f.timestamp%60).padStart(2,'0')}`;
         md += `- Foto ${i+1} (${zeit}): ${f.beschreibung}\n`;
       });
-    } else {
-      md += `- \n`;
+      md += `\n---\n\n`;
     }
-    md += `\n---\n\n`;
 
     // Sonstiges / Bemerkungen
-    md += `## 📝 Sonstiges / Bemerkungen\n\n`;
     const bemerkungen = byKat['Bemerkungen'] || [];
     if (bemerkungen.length) {
+      md += `## 📝 Sonstiges / Bemerkungen\n\n`;
       bemerkungen.forEach(t => md += `- ${t.text}\n`);
-    } else {
-      md += `- \n`;
+      md += `\n---\n\n`;
     }
-    md += `\n---\n\n`;
 
     md += `*Erstellt: ${datum} um ${zeit} Uhr*\n`;
 
