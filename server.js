@@ -285,6 +285,7 @@ app.post('/sitzung', (req, res, next) => {
       projekt: req.body.projekt,
       anwesende: req.body.anwesende,
       transkript: null,
+      transkriptBereinigt: null,
       fotoAnalysen: [],
       topics: [],
       createdAt: Date.now()
@@ -300,11 +301,42 @@ app.post('/transkribieren', async (req, res) => {
     if (!s) return res.status(404).json({ error: 'Sitzung nicht gefunden' });
     const audioBuffer = await fs.readFile(s.audioPath);
     const audioBase64 = 'data:audio/webm;base64,' + audioBuffer.toString('base64');
+    const whisperPrompt = 'Giovanoli, Dario, Heizung, Sanitär, Lüftung, Haustechnik, HLKS, Baustelle, Pendenzen, Wärmepumpe, Heizkörper, Estrich, Rohrleitung, Armatur, Ventil, Pumpe, Schacht, Unterlagsboden, Abpressprotokoll. Grüezi mitenand, mir fangid jetzt a mit de Bausitzung.';
     const output = await replicate.run(
       'thomasmol/whisper-diarization:1495a9cddc83b2203b0d8d3516e38b80fd1572ebc4bc5700ac1da56a9b3ed886',
-      { input: { file_string: audioBase64, language: 'de', prompt: 'Schweizerdeutsch, Hochdeutsch, Baustelle, Heizung, Sanitär, Lüftung, Giovanoli.' } }
+      { input: { file_string: audioBase64, language: 'de', prompt: whisperPrompt } }
     );
     s.transkript = output;
+
+    // Claude bereinigt Schweizerdeutsch → Hochdeutsch
+    const rohText = (output.segments || [])
+      .map(seg => `[${seg.speaker || 'SPEAKER'}] ${(seg.text || '').trim()}`)
+      .filter(l => l.length > 12)
+      .join('\n');
+    if (rohText.trim()) {
+      try {
+        const bereinigtResp = await anthropic.messages.create({
+          model: 'claude-opus-4-6',
+          max_tokens: calcMaxTokens(rohText),
+          system: `Du bist ein Übersetzer für Schweizerdeutsch und Dialekt.
+Forme den transkribierten Gesprächstext in korrektes, natürliches Schriftdeutsch um.
+REGELN:
+- Alle Inhalte, Namen, Zahlen, Daten und Fachbegriffe exakt beibehalten.
+- Nur Sprache, Grammatik und Ausdruck anpassen — Sinn bleibt identisch.
+- Sprecher-Labels [SPEAKER_XX] unverändert beibehalten.
+- Offensichtliche Whisper-Fehler bei Schweizer Fachbegriffen korrigieren.
+- Füllwörter (äh, mhm) weglassen wenn störend.
+- Nur den bereinigten Text zurückgeben, keine Erklärungen.`,
+          messages: [{ role: 'user', content: rohText }]
+        });
+        s.transkriptBereinigt = bereinigtResp.content[0].text.trim();
+        console.log(`[transkribieren] Bereinigung OK (${s.transkriptBereinigt.length}ch)`);
+      } catch (e) {
+        console.warn('[transkribieren] Bereinigung fehlgeschlagen, Fallback:', e.message);
+        s.transkriptBereinigt = rohText;
+      }
+    }
+
     res.json({ ok: true, segments: output.segments?.length || 0 });
   } catch (e) { console.error('transkribieren:', e); res.status(500).json({ error: e.message }); }
 });
@@ -342,7 +374,9 @@ app.post('/themen', async (req, res) => {
     if (anwesende) s.anwesende = anwesende;
 
     const segments = s.transkript?.segments || [];
-    const transkriptText = segments.map(seg => `[${seg.speaker || 'SPEAKER'}] ${seg.text}`).join('\n');
+    const transkriptText = s.transkriptBereinigt ||
+      segments.map(seg => `[${seg.speaker || 'SPEAKER'}] ${seg.text}`).join('\n');
+    console.log(`[themen] Transkript: ${s.transkriptBereinigt ? 'bereinigt' : 'roh'} (${transkriptText.length}ch)`);
     const fotoKontext = s.fotoAnalysen.map(f => `[Foto bei ${Math.floor(f.timestamp/60)}:${String(f.timestamp%60).padStart(2,'0')}] ${f.beschreibung}`).join('\n');
 
     const projektTyp = detectProjektTyp(s.projekt);
