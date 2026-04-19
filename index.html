@@ -422,11 +422,10 @@ loadProjekte();
 // Deploy-Zeit im Wordmark anzeigen
 (async()=>{
   try{
-    const r = await fetch(S.backend.replace('/api','')+'/version');
-    const {version, deployed} = await r.json();
+    const {version, deployed} = await api('/version');
     const el = document.getElementById('wordmark');
     if(el) el.textContent = `Giovanoli Gebäudetechnik · v${version} · ${deployed}`;
-  } catch(_){}
+  } catch(e){ console.warn('version fetch:', e); }
 })();
 
 async function handleStart(){
