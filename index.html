@@ -324,6 +324,14 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
           <p>Genau dieser Name — wird von der App verwendet.</p>
         </div>
       </div>
+      <div style="height:1px;background:var(--border);margin:10px 0"></div>
+      <div class="launch-step">
+        <div class="launch-num">4</div>
+        <div class="launch-text">
+          <strong>2. Shortcut: <em>Aufnahme beenden</em></strong>
+          <p>Neuer Shortcut → Aktion «Aufnahme stoppen» (Sprachmemos) → Name: <em>Aufnahme beenden</em></p>
+        </div>
+      </div>
     </div>
     <div class="launch-step">
       <div class="launch-num" style="background: var(--green-dim); color: var(--green);">&#10003;</div>
@@ -402,7 +410,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
       <div class="ui-step"><div class="ui-num">3</div>«In Dateien sichern» → iCloud Drive</div>
       <div class="ui-step"><div class="ui-num">4</div>Hier unten Datei auswählen</div>
     </div>
-    <a class="btn-voice-memos" href="voicememos://">↩ Zurück zu Voice Memos</a>
+    <button class="btn-voice-memos" onclick="window.location.href='shortcuts://run-shortcut?name=Aufnahme%20beenden'">Aufnahme stoppen (Shortcut)</button>
     <label class="upload-dropzone">
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       <span>Audio-Datei auswählen (.m4a)</span>
@@ -509,7 +517,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 <script>
 // Cache-Buster: zwingt PWA zur Aktualisierung bei neuer Version
 (function(){
-  const V = '20260420-3';
+  const V = '20260420-4';
   if(localStorage.getItem('ggt-v') !== V){
     localStorage.setItem('ggt-v', V);
     if(performance.navigation?.type !== 1) location.reload(true);
@@ -900,7 +908,8 @@ async function addPhotos(input){
         if(S.mediaRecorder && S.mediaRecorder.state!=='inactive'){ S.mediaRecorder.stop(); }
         setTimeout(endRecordingFlow,600);
       } else {
-        setTimeout(()=>showUploadScreen(),600);
+        showUploadScreen();
+        setTimeout(()=>{ window.location.href='shortcuts://run-shortcut?name=Aufnahme%20beenden'; }, 500);
       }
     } else {
       thumb().style.transition='left .2s ease';
