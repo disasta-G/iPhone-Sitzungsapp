@@ -374,7 +374,7 @@ REGELN:
       }
     }
 
-    res.json({ ok: true, segments: output.segments?.length || 0 });
+    res.json({ ok: true, segments: segments.length });
   } catch (e) { console.error('transkribieren:', e); res.status(500).json({ error: e.message }); }
 });
 
