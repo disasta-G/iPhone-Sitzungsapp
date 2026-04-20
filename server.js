@@ -15,23 +15,23 @@ const fsSync = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 const Anthropic = require('@anthropic-ai/sdk');
-const Replicate = require('replicate');
+const { AssemblyAI } = require('assemblyai');
 
 const app = express();
 const SERVER_START = new Date();
 const PORT = process.env.PORT || 3001;
 const VAULT = process.env.VAULT_PATH;
 const API_SECRET = process.env.API_SECRET;
-const REPLICATE_TOKEN = process.env.REPLICATE_TOKEN;
+const ASSEMBLYAI_KEY = process.env.ASSEMBLYAI_KEY;
 const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
 
-if (!VAULT || !API_SECRET || !REPLICATE_TOKEN || !ANTHROPIC_KEY) {
-  console.error('FEHLER: VAULT_PATH, API_SECRET, REPLICATE_TOKEN, ANTHROPIC_KEY müssen gesetzt sein');
+if (!VAULT || !API_SECRET || !ASSEMBLYAI_KEY || !ANTHROPIC_KEY) {
+  console.error('FEHLER: VAULT_PATH, API_SECRET, ASSEMBLYAI_KEY, ANTHROPIC_KEY müssen gesetzt sein');
   process.exit(1);
 }
 
 const anthropic = new Anthropic({ apiKey: ANTHROPIC_KEY });
-const replicate = new Replicate({ auth: REPLICATE_TOKEN });
+const assemblyClient = new AssemblyAI({ apiKey: ASSEMBLYAI_KEY });
 
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 if (!fsSync.existsSync(UPLOAD_DIR)) fsSync.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -301,33 +301,27 @@ app.post('/transkribieren', async (req, res) => {
     const id = req.query.id;
     const s = sessions[id];
     if (!s) return res.status(404).json({ error: 'Sitzung nicht gefunden' });
-    const audioBuffer = await fs.readFile(s.audioPath);
-    const audioExt = path.extname(s.audioPath).slice(1).toLowerCase();
-    const mimeMap = { m4a:'audio/mp4', mp4:'audio/mp4', webm:'audio/webm', wav:'audio/wav', aac:'audio/aac', ogg:'audio/ogg' };
-    const audioMime = mimeMap[audioExt] || 'audio/webm';
-    const audioBase64 = `data:${audioMime};base64,` + audioBuffer.toString('base64');
-    const whisperPrompt = [
-      'Giovanoli, Dario, Heizung, Sanitär, Lüftung, Haustechnik, HLKS, Baustelle, Pendenzen,',
-      'Wärmepumpe, Heizkörper, Estrich, Rohrleitung, Armatur, Ventil, Pumpe, Schacht,',
-      'Unterlagsboden, Abpressprotokoll, Fussbodenheizung, Verteiler, Speicher, Boiler,',
-      'Luftauslass, Zuluft, Abluft, Kanalisation, Lüftungskanal, Heizkreis, Druckverlust.',
-      'Grüezi mitenand. Mir fangid jetzt a mit de Bausitzung.',
-      'I ha de Plan scho aglueget, das isch no nid gmacht worde.',
-      'Mir müend no de Estrich abdrucke, de Anschluss isch no nid fertig.',
-      'Wer isch derfür verantwortlich? Das chunnt nächste Wuche.',
-      'Mir händ no e Pendenz offe, das mues no abgchlare werde.',
-      'De Boiler isch scho installiert, mir warte no uf d Inbetriebnahme.',
-      'Chönd mir das bis Mäntig erledige? Jo, das isch kei Problem.'
-    ].join(' ');
-    const output = await replicate.run(
-      'thomasmol/whisper-diarization:1495a9cddc83b2203b0d8d3516e38b80fd1572ebc4bc5700ac1da56a9b3ed886',
-      { input: { file_string: audioBase64, prompt: whisperPrompt } }
-    );
-    s.transkript = output;
+    console.log(`[transkribieren] AssemblyAI Start: ${s.audioPath}`);
+    const transcript = await assemblyClient.transcripts.transcribe({
+      audio: s.audioPath,
+      language_code: 'de',
+      speaker_labels: true,
+      punctuate: true,
+      format_text: true,
+    });
+    if (transcript.status === 'error') throw new Error(`AssemblyAI: ${transcript.error}`);
+    const segments = (transcript.utterances || []).map(u => ({
+      speaker: `SPEAKER_${u.speaker}`,
+      text: u.text,
+      start: u.start / 1000,
+      end: u.end / 1000,
+    }));
+    s.transkript = { segments };
+    console.log(`[transkribieren] AssemblyAI OK: ${segments.length} Utterances`);
 
     // Claude bereinigt Schweizerdeutsch → Hochdeutsch
-    const rohText = (output.segments || [])
-      .map(seg => `[${seg.speaker || 'SPEAKER'}] ${(seg.text || '').trim()}`)
+    const rohText = segments
+      .map(seg => `[${seg.speaker}] ${seg.text.trim()}`)
       .filter(l => l.length > 12)
       .join('\n');
     if (rohText.trim()) {
@@ -358,7 +352,9 @@ REGELN:
 - Sprecher-Labels [SPEAKER_XX] unverändert beibehalten.
 - Sinn und Inhalt bleiben 100% identisch — nur Dialekt und Erkennungsfehler korrigieren.
 - Füllwörter (äh, mhm, ähm) weglassen.
-- Nur bereinigten Text zurückgeben, keine Erklärungen.`,
+- NIEMALS Kommentare, Erklärungen oder Fehlermeldungen ausgeben.
+- NIEMALS schreiben dass der Text unbrauchbar sei — immer das Beste daraus machen.
+- Nur den bereinigten Text zurückgeben.`,
           messages: [{ role: 'user', content: rohText }]
         });
         s.transkriptBereinigt = bereinigtResp.content[0].text.trim();
