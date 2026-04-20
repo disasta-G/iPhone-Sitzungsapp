@@ -321,7 +321,7 @@ app.post('/transkribieren', async (req, res) => {
     ].join(' ');
     const output = await replicate.run(
       'thomasmol/whisper-diarization:1495a9cddc83b2203b0d8d3516e38b80fd1572ebc4bc5700ac1da56a9b3ed886',
-      { input: { file_string: audioBase64, language: 'de', prompt: whisperPrompt, group_segments: true } }
+      { input: { file_string: audioBase64, prompt: whisperPrompt } }
     );
     s.transkript = output;
 
