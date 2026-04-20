@@ -331,7 +331,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
     </div>
   </div>
   <div class="launch-footer">
-    <button class="btn-start" onclick="openVoiceMemos()">Voice Memos öffnen &amp; Sitzung starten</button>
+    <a class="btn-start" href="voicememos://" onclick="openVoiceMemos(event)">Voice Memos öffnen &amp; Sitzung starten</a>
     <button class="btn-secondary" onclick="show('s-setup')">Zurück</button>
   </div>
 </div>
@@ -398,7 +398,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
       <div class="ui-step"><div class="ui-num">3</div>«In Dateien sichern» → iCloud Drive</div>
       <div class="ui-step"><div class="ui-num">4</div>Hier unten Datei auswählen</div>
     </div>
-    <button class="btn-voice-memos" onclick="window.location.href='voicememos://'">↩ Zurück zu Voice Memos</button>
+    <a class="btn-voice-memos" href="voicememos://">↩ Zurück zu Voice Memos</a>
     <label class="upload-dropzone">
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       <span>Audio-Datei auswählen (.m4a)</span>
@@ -1171,7 +1171,8 @@ function newSession(){
 
 // === External Recorder Mode ===
 
-function openVoiceMemos(){
+function openVoiceMemos(event){
+  // event.preventDefault() NICHT aufrufen — der <a href="voicememos://"> erledigt die Navigation
   S.sessionStartTime = Date.now();
   persistSession();
   startExternTimer();
@@ -1179,9 +1180,8 @@ function openVoiceMemos(){
   document.getElementById('rec-sub').textContent = S.anwesende + ' · ' + S.datum;
   const hint = document.getElementById('rec-mode-hint');
   if(hint) hint.style.display = 'block';
-  show('s-record');
-  // URL-Schema öffnet Voice Memos ohne die PWA zu verlassen
-  window.location.href = 'voicememos://';
+  // Kurze Verzögerung: iOS verarbeitet erst den Link, dann wechseln wir den Screen
+  setTimeout(() => show('s-record'), 80);
 }
 
 function startExternTimer(){
