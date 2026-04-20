@@ -313,12 +313,19 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
       <div class="launch-step">
         <div class="launch-num">2</div>
         <div class="launch-text">
-          <strong>Aktion suchen: «Neue Aufnahme»</strong>
+          <strong>Aktion 1: «Neue Aufnahme»</strong>
           <p>Unter «Sprachmemos» → «Neue Aufnahme starten» auswählen.</p>
         </div>
       </div>
       <div class="launch-step">
         <div class="launch-num">3</div>
+        <div class="launch-text">
+          <strong>Aktion 2: «URL öffnen»</strong>
+          <p>URL: <em>https://ggt.plandiff.cloud</em> — damit kehrt iOS automatisch zur App zurück.</p>
+        </div>
+      </div>
+      <div class="launch-step">
+        <div class="launch-num">4</div>
         <div class="launch-text">
           <strong>Name: <em>Sitzung aufnehmen</em></strong>
           <p>Genau dieser Name — wird von der App verwendet.</p>
@@ -326,10 +333,10 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
       </div>
       <div style="height:1px;background:var(--border);margin:10px 0"></div>
       <div class="launch-step">
-        <div class="launch-num">4</div>
+        <div class="launch-num">5</div>
         <div class="launch-text">
           <strong>2. Shortcut: <em>Aufnahme beenden</em></strong>
-          <p>Neuer Shortcut → Aktion «Aufnahme stoppen» (Sprachmemos) → Name: <em>Aufnahme beenden</em></p>
+          <p>Aktionen: «Aufnahme stoppen» + «URL öffnen» → <em>https://ggt.plandiff.cloud</em> → Name: <em>Aufnahme beenden</em></p>
         </div>
       </div>
     </div>
@@ -517,7 +524,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 <script>
 // Cache-Buster: zwingt PWA zur Aktualisierung bei neuer Version
 (function(){
-  const V = '20260420-4';
+  const V = '20260420-5';
   if(localStorage.getItem('ggt-v') !== V){
     localStorage.setItem('ggt-v', V);
     if(performance.navigation?.type !== 1) location.reload(true);
