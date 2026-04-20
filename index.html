@@ -297,41 +297,45 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 <!-- LAUNCH -->
 <div class="screen" id="s-launch">
   <div class="screen-header">
-    <div class="wordmark">Sitzung vorbereiten</div>
-    <div class="h-title">Aufnahme<br><span>starten</span></div>
+    <div class="wordmark">Aufnahme</div>
+    <div class="h-title">Sitzung<br><span>starten</span></div>
   </div>
   <div class="launch-body">
-    <div class="launch-step">
-      <div class="launch-num">1</div>
-      <div class="launch-text">
-        <strong>Tippe «Sitzung starten»</strong>
-        <p>Die Sitzungs-Uhr startet. Wechsle dann manuell zu Voice Memos (App Switcher oder Home Screen).</p>
+    <div class="card" style="border-left: 3px solid var(--amber); padding-bottom: 12px;">
+      <div class="card-label" style="margin-bottom: 14px;">Einmalig einrichten — Apple Shortcuts</div>
+      <div class="launch-step">
+        <div class="launch-num">1</div>
+        <div class="launch-text">
+          <strong>Shortcuts-App öffnen → «+»</strong>
+          <p>Neuen Shortcut erstellen.</p>
+        </div>
+      </div>
+      <div class="launch-step">
+        <div class="launch-num">2</div>
+        <div class="launch-text">
+          <strong>Aktion suchen: «Neue Aufnahme»</strong>
+          <p>Unter «Sprachmemos» → «Neue Aufnahme starten» auswählen.</p>
+        </div>
+      </div>
+      <div class="launch-step">
+        <div class="launch-num">3</div>
+        <div class="launch-text">
+          <strong>Name: <em>Sitzung aufnehmen</em></strong>
+          <p>Genau dieser Name — wird von der App verwendet.</p>
+        </div>
       </div>
     </div>
     <div class="launch-step">
-      <div class="launch-num">2</div>
+      <div class="launch-num" style="background: var(--green-dim); color: var(--green);">&#10003;</div>
       <div class="launch-text">
-        <strong>Aufnahme in Voice Memos starten</strong>
-        <p>Roten Aufnahme-Button drücken. Die Aufnahme läuft weiter — auch wenn du zurückwechselst.</p>
-      </div>
-    </div>
-    <div class="launch-step">
-      <div class="launch-num">3</div>
-      <div class="launch-text">
-        <strong>Zurück zur App für Fotos &amp; Pendenzen</strong>
-        <p>App Switcher → GGT Notizen. Die Uhr läuft automatisch mit.</p>
-      </div>
-    </div>
-    <div class="launch-step">
-      <div class="launch-num">4</div>
-      <div class="launch-text">
-        <strong>Nach der Sitzung: Aufnahme hochladen</strong>
-        <p>Voice Memos → Aufnahme antippen → Teilen → «In Dateien sichern» → iCloud Drive.</p>
+        <strong>Button drücken → Shortcut startet Voice Memos</strong>
+        <p>Aufnahme läuft auch bei gesperrtem Bildschirm und anderen Apps.</p>
       </div>
     </div>
   </div>
   <div class="launch-footer">
-    <button class="btn-start" onclick="openVoiceMemos()">Sitzung starten</button>
+    <button class="btn-start" onclick="openVoiceMemos(true)">Via Shortcut starten</button>
+    <button class="btn-secondary" onclick="openVoiceMemos(false)">Manuell starten (ohne Shortcut)</button>
     <button class="btn-secondary" onclick="show('s-setup')">Zurück</button>
   </div>
 </div>
@@ -505,7 +509,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 <script>
 // Cache-Buster: zwingt PWA zur Aktualisierung bei neuer Version
 (function(){
-  const V = '20260420-2';
+  const V = '20260420-3';
   if(localStorage.getItem('ggt-v') !== V){
     localStorage.setItem('ggt-v', V);
     if(performance.navigation?.type !== 1) location.reload(true);
@@ -660,17 +664,8 @@ async function startSession(){
     S.pendenzList = d.pendenzen || [];
   }catch(e){ S.pendenzList = []; }
   renderPendenzen();
-  try{
-    await startRecording();
-    S.mode = 'intern';
-    S.sessionStartTime = Date.now();
-    show('s-record');
-  }catch(e){
-    // Mikrofon verweigert → Voice Memos Fallback
-    S.mode = 'extern';
-    toast('Mikrofon nicht verfügbar — nutze Voice Memos', true);
-    show('s-launch');
-  }
+  S.mode = 'extern';
+  show('s-launch');
 }
 
 function renderPendenzen(){
@@ -1197,7 +1192,7 @@ function newSession(){
 
 // === External Recorder Mode ===
 
-function openVoiceMemos(){
+function openVoiceMemos(useShortcut = false){
   S.sessionStartTime = Date.now();
   persistSession();
   startExternTimer();
@@ -1206,6 +1201,9 @@ function openVoiceMemos(){
   const hint = document.getElementById('rec-mode-hint');
   if(hint) hint.style.display = 'block';
   show('s-record');
+  if(useShortcut){
+    setTimeout(() => { window.location.href = 'shortcuts://run-shortcut?name=Sitzung%20aufnehmen'; }, 200);
+  }
 }
 
 function startExternTimer(){
