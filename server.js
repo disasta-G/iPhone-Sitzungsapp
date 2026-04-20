@@ -501,9 +501,13 @@ app.post('/bericht', async (req, res) => {
       md += `## 📸 Fotos / Anhänge\n\n`;
       s.fotoAnalysen.forEach((f, i) => {
         const zeit = `${Math.floor(f.timestamp/60)}:${String(f.timestamp%60).padStart(2,'0')}`;
-        md += `- Foto ${i+1} (${zeit}): ${f.beschreibung}\n`;
+        const ext = s.fotos[i] ? path.extname(s.fotos[i].path) : '.jpg';
+        const filename = `${datumFile}-foto-${i+1}${ext}`;
+        md += `![[${filename}]]\n`;
+        md += `> [!note]- Bildbeschreibung (${zeit})\n`;
+        md += `> ${f.beschreibung}\n\n`;
       });
-      md += `\n---\n\n`;
+      md += `---\n\n`;
     }
 
     // Sonstiges / Bemerkungen
