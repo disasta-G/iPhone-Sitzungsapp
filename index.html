@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="GGT Notizen">
 <meta name="theme-color" content="#f5f3ee" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f0f0f" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="/manifest.webmanifest">
 <title>GGT Sitzungsnotizen</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
@@ -253,6 +254,18 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .upload-footer { padding: 12px 20px max(28px, env(safe-area-inset-bottom, 28px)); display: flex; flex-direction: column; gap: 8px; }
 .btn-voice-memos { width: 100%; padding: 12px; background: transparent; border: 0.5px solid rgba(40,105,179,0.35); border-radius: var(--radius); font-size: 14px; font-weight: 500; color: var(--blue); font-family: 'DM Sans', sans-serif; cursor: pointer; }
 .btn-voice-memos:active { background: var(--blue-dim); }
+
+/* Foto-Cards im Upload-Screen */
+.foto-cards { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.foto-card { display: flex; align-items: center; gap: 10px; padding: 8px; background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow); }
+.foto-card-thumb { width: 52px; height: 52px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
+.foto-card-info { flex: 1; min-width: 0; }
+.foto-card-name { font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
+.foto-card-time { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; }
+.foto-card-exif { font-size: 10px; color: var(--green); margin-left: 4px; }
+.foto-card-del { padding: 5px 8px; color: var(--text3); background: none; border: 0.5px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 17px; line-height: 1; flex-shrink: 0; font-family: sans-serif; }
+.foto-card-del:active { background: var(--red-dim); color: var(--red); border-color: var(--red); }
+.foto-empty { padding: 12px; font-size: 12px; color: var(--text3); text-align: center; border: 0.5px dashed var(--border); border-radius: var(--radius-sm); }
 </style>
 </head>
 <body>
@@ -394,7 +407,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
     <div id="upload-chosen" class="upload-chosen" style="display:none"></div>
     <div class="upload-photos-section">
       <span class="upload-section-label">Fotos (<span id="upload-photo-count">0</span>) — nachträglich hinzufügen</span>
-      <div class="foto-thumbs" id="upload-foto-thumbs"></div>
+      <div class="foto-cards" id="upload-foto-cards"></div>
       <label class="foto-gallery-btn" style="margin-top:4px">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
         <span>Fotos hinzufügen</span>
@@ -803,20 +816,24 @@ function stopAudioPulse(){
   }
 }
 
-function addPhotos(input){
-  const elapsed = S.sessionStartTime
-    ? Math.floor((Date.now()-S.sessionStartTime)/1000)
-    : S.seconds;
-  Array.from(input.files).forEach(f=>{
+async function addPhotos(input){
+  const files = Array.from(input.files);
+  const thumbsEl = document.getElementById('foto-thumbs');
+  for(const f of files){
+    const {elapsed, fromExif} = await getPhotoTimestamp(f);
     S.photos.push(f); S.photoTimestamps.push(elapsed);
+    savePhotoToDB(f, elapsed).catch(()=>{});
     const url = URL.createObjectURL(f);
     const img = document.createElement('img');
     img.src = url; img.className = 'foto-thumb';
-    img.title = 'Bei '+fmtTimer(elapsed);
-    document.getElementById('foto-thumbs').appendChild(img);
-  });
+    img.title = (fromExif ? 'EXIF ' : '') + 'Bei '+fmtTimer(elapsed);
+    if(thumbsEl) thumbsEl.appendChild(img);
+  }
   persistSession();
-  toast('Foto bei '+fmtTimer(elapsed));
+  if(files.length){
+    const last = S.photoTimestamps[S.photoTimestamps.length-1];
+    toast('Foto bei '+fmtTimer(last));
+  }
   input.value = '';
 }
 
@@ -1191,10 +1208,10 @@ function persistSession(){
   }catch(e){}
 }
 
-function clearPersistedSession(){ localStorage.removeItem('ggt-active-session'); }
+function clearPersistedSession(){ localStorage.removeItem('ggt-active-session'); clearPhotosDB().catch(()=>{}); }
 function hasPersistedSession(){ return !!localStorage.getItem('ggt-active-session'); }
 
-function restoreSession(){
+async function restoreSession(){
   try{
     const saved = JSON.parse(localStorage.getItem('ggt-active-session')||'{}');
     if(!saved.startTime) return;
@@ -1211,31 +1228,35 @@ function restoreSession(){
       photoTimestamps: saved.photoTimestamps||[],
       photos:[], audioChunks:[]
     });
+    // Fotos aus IndexedDB laden
+    try{
+      const records = await loadPhotosFromDB();
+      if(records.length){
+        S.photos = records.map(r=>new File([r.blob], r.name, {type:r.type}));
+        S.photoTimestamps = records.map(r=>r.timestamp);
+      }
+    }catch(e){}
     document.getElementById('rec-proj').textContent = S.projekt;
     document.getElementById('rec-sub').textContent = S.anwesende + ' · ' + S.datum;
     const hint = document.getElementById('rec-mode-hint');
     if(hint) hint.style.display = S.mode==='extern' ? 'block' : 'none';
-    document.getElementById('foto-thumbs').innerHTML = '';
+    const thumbsEl = document.getElementById('foto-thumbs');
+    if(thumbsEl){ thumbsEl.innerHTML=''; S.photos.forEach(f=>{ const u=URL.createObjectURL(f); const i=document.createElement('img'); i.src=u; i.className='foto-thumb'; thumbsEl.appendChild(i); }); }
     renderPendenzen();
     startExternTimer();
     show('s-record');
-    toast('Sitzung wiederhergestellt');
+    toast('Sitzung + ' + S.photos.length + ' Foto(s) wiederhergestellt');
   }catch(e){ clearPersistedSession(); }
 }
 
 // Upload-Screen Funktionen
 function showUploadScreen(){
-  // Audio-Wahl zurücksetzen
   S.uploadedFile = null;
   const chosen = document.getElementById('upload-chosen');
   if(chosen) chosen.style.display = 'none';
   const btn = document.getElementById('btn-upload-continue');
   if(btn) btn.disabled = true;
-  // Bestehende Fotos anzeigen
-  const thumbs = document.getElementById('upload-foto-thumbs');
-  if(thumbs){ thumbs.innerHTML = ''; S.photos.forEach(f=>{ const u=URL.createObjectURL(f); const i=document.createElement('img'); i.src=u; i.className='foto-thumb'; thumbs.appendChild(i); }); }
-  const cnt = document.getElementById('upload-photo-count');
-  if(cnt) cnt.textContent = S.photos.length;
+  renderUploadPhotos();
   show('s-upload');
 }
 
@@ -1251,23 +1272,25 @@ function onUploadAudioSelected(input){
   input.value = '';
 }
 
-function addPhotosPostSession(input){
-  const total = input.files.length;
+async function addPhotosPostSession(input){
+  const files = Array.from(input.files);
   const base = S.finalSeconds || 0;
-  Array.from(input.files).forEach((f,idx)=>{
-    S.photos.push(f);
-    // Fotos gleichmässig über Sitzungsdauer verteilen
-    const ts = base > 0 ? Math.round(base*(idx+1)/(total+1)) : 0;
-    S.photoTimestamps.push(ts);
-    const url = URL.createObjectURL(f);
-    const img = document.createElement('img');
-    img.src = url; img.className = 'foto-thumb';
-    const thumbs = document.getElementById('upload-foto-thumbs');
-    if(thumbs) thumbs.appendChild(img);
-  });
-  const cnt = document.getElementById('upload-photo-count');
-  if(cnt) cnt.textContent = S.photos.length;
-  toast(total + ' Foto' + (total>1?'s':'') + ' hinzugefügt');
+  for(let i=0; i<files.length; i++){
+    const f = files[i];
+    const exifDate = await readExifTimestamp(f);
+    let ts, fromExif = false;
+    if(exifDate && S.sessionStartTime){
+      const exifElapsed = Math.floor((exifDate.getTime()-S.sessionStartTime)/1000);
+      if(exifElapsed >= 0 && exifElapsed <= base+300){
+        ts = Math.min(exifElapsed, base); fromExif = true;
+      }
+    }
+    if(ts === undefined) ts = base>0 ? Math.round(base*(i+1)/(files.length+1)) : 0;
+    S.photos.push(f); S.photoTimestamps.push(ts);
+    savePhotoToDB(f, ts).catch(()=>{});
+  }
+  renderUploadPhotos();
+  toast(files.length + ' Foto' + (files.length>1?'s':'') + ' hinzugefügt');
   input.value = '';
 }
 
@@ -1276,8 +1299,157 @@ function continueFromUpload(){
   endRecordingFlow();
 }
 
+// === Phase 2: EXIF-Timestamps + IndexedDB + Foto-Management ===
+
+// EXIF-Timestamp aus JPEG lesen (DateTimeOriginal aus ExifIFD)
+async function readExifTimestamp(file){
+  if(!file.name.toLowerCase().match(/\.jpe?g$/) && !file.type.includes('jpeg')) return null;
+  try{
+    const buf = await file.slice(0, 131072).arrayBuffer();
+    const b = new Uint8Array(buf);
+    let i = 2;
+    while(i < b.length-4){
+      if(b[i] !== 0xFF) break;
+      const marker = (b[i]<<8)|b[i+1];
+      const segLen = (b[i+2]<<8)|b[i+3];
+      if(marker === 0xFFE1){
+        const hdr = String.fromCharCode(...b.slice(i+4,i+10));
+        if(hdr === 'Exif\0\0'){
+          const tiff = i+10;
+          const le = b[tiff]===0x49;
+          const r16 = o=>le?(b[tiff+o]|(b[tiff+o+1]<<8)):((b[tiff+o]<<8)|b[tiff+o+1]);
+          const r32 = o=>le?(b[tiff+o]|(b[tiff+o+1]<<8)|(b[tiff+o+2]<<16)|(b[tiff+o+3]<<24)):((b[tiff+o]<<24)|(b[tiff+o+1]<<16)|(b[tiff+o+2]<<8)|b[tiff+o+3]);
+          const ifdOff = r32(4);
+          const n = r16(ifdOff);
+          let exifIFDOff = null;
+          for(let t=0;t<n;t++){
+            const to=ifdOff+2+t*12;
+            if(r16(to)===0x8769){exifIFDOff=r32(to+8);break;}
+          }
+          const parseIFD = (off)=>{
+            if(off===null||off+2>buf.byteLength) return null;
+            const nt=r16(off);
+            for(let t=0;t<nt;t++){
+              const to=off+2+t*12;
+              if(to+12>buf.byteLength) break;
+              const tag=r16(to);
+              if(tag===0x9003||tag===0x0132){
+                const vo=r32(to+8);
+                if(tiff+vo+19>buf.byteLength) return null;
+                let s='';
+                for(let c=0;c<19;c++) s+=String.fromCharCode(b[tiff+vo+c]);
+                const m=s.match(/^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})$/);
+                return m?new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+m[6]):null;
+              }
+            }
+            return null;
+          };
+          const dt=parseIFD(exifIFDOff)||parseIFD(ifdOff);
+          if(dt) return dt;
+        }
+      }
+      if(marker===0xFFDA) break;
+      i+=2+segLen;
+    }
+  }catch(e){ console.warn('[EXIF]',e); }
+  return null;
+}
+
+// Timestamp für ein Foto bestimmen (EXIF bevorzugt, Wall-Clock als Fallback)
+async function getPhotoTimestamp(file){
+  if(S.sessionStartTime){
+    const exifDate = await readExifTimestamp(file);
+    if(exifDate){
+      const exifElapsed = Math.floor((exifDate.getTime()-S.sessionStartTime)/1000);
+      const maxSec = (S.finalSeconds||0)||86400;
+      if(exifElapsed>=-60 && exifElapsed<=maxSec+3600){
+        return {elapsed:Math.max(0,exifElapsed), fromExif:true};
+      }
+    }
+    return {elapsed:Math.floor((Date.now()-S.sessionStartTime)/1000), fromExif:false};
+  }
+  return {elapsed:S.seconds, fromExif:false};
+}
+
+// IndexedDB für Foto-Persistenz
+let _db = null;
+async function openSessionDB(){
+  if(_db) return _db;
+  return new Promise((res,rej)=>{
+    const req=indexedDB.open('ggt-session-v1',1);
+    req.onupgradeneeded=e=>{
+      const d=e.target.result;
+      if(!d.objectStoreNames.contains('photos')) d.createObjectStore('photos',{keyPath:'id',autoIncrement:true});
+    };
+    req.onsuccess=e=>{_db=e.target.result;res(_db);};
+    req.onerror=e=>rej(e);
+  });
+}
+async function savePhotoToDB(file, timestamp){
+  const d=await openSessionDB();
+  return new Promise((res,rej)=>{
+    const tx=d.transaction('photos','readwrite');
+    tx.objectStore('photos').add({blob:file,name:file.name,type:file.type||'image/jpeg',timestamp});
+    tx.oncomplete=res; tx.onerror=rej;
+  });
+}
+async function loadPhotosFromDB(){
+  const d=await openSessionDB();
+  return new Promise((res,rej)=>{
+    const tx=d.transaction('photos','readonly');
+    const req=tx.objectStore('photos').getAll();
+    req.onsuccess=e=>res(e.target.result||[]);
+    req.onerror=rej;
+  });
+}
+async function clearPhotosDB(){
+  try{
+    const d=await openSessionDB();
+    return new Promise((res,rej)=>{
+      const tx=d.transaction('photos','readwrite');
+      tx.objectStore('photos').clear();
+      tx.oncomplete=res; tx.onerror=rej;
+    });
+  }catch(e){}
+}
+
+// Foto-Cards im Upload-Screen rendern
+function renderUploadPhotos(){
+  const container=document.getElementById('upload-foto-cards');
+  if(!container) return;
+  container.innerHTML='';
+  if(!S.photos.length){
+    container.innerHTML='<div class="foto-empty">Noch keine Fotos — optional</div>';
+  } else {
+    S.photos.forEach((f,idx)=>{
+      const url=URL.createObjectURL(f);
+      const ts=S.photoTimestamps[idx]||0;
+      const div=document.createElement('div');
+      div.className='foto-card';
+      div.innerHTML=`<img src="${url}" class="foto-card-thumb"><div class="foto-card-info"><div class="foto-card-name">${escapeHtml(f.name)}</div><div class="foto-card-time">Bei ${fmtTimer(ts)}</div></div><button class="foto-card-del" onclick="removePhoto(${idx})">×</button>`;
+      container.appendChild(div);
+    });
+  }
+  const cnt=document.getElementById('upload-photo-count');
+  if(cnt) cnt.textContent=S.photos.length;
+}
+
+// Foto entfernen
+async function removePhoto(idx){
+  S.photos.splice(idx,1); S.photoTimestamps.splice(idx,1);
+  try{
+    await clearPhotosDB();
+    for(let i=0;i<S.photos.length;i++) await savePhotoToDB(S.photos[i],S.photoTimestamps[i]);
+  }catch(e){}
+  renderUploadPhotos();
+  persistSession();
+  // Record-Screen-Thumbs synchronisieren
+  const thumbsEl=document.getElementById('foto-thumbs');
+  if(thumbsEl){ thumbsEl.innerHTML=''; S.photos.forEach(f=>{const u=URL.createObjectURL(f);const i=document.createElement('img');i.src=u;i.className='foto-thumb';thumbsEl.appendChild(i);}); }
+}
+
 // Recovery beim App-Start
-document.addEventListener('DOMContentLoaded', ()=>{
+document.addEventListener('DOMContentLoaded', async ()=>{
   if(!hasPersistedSession()) return;
   try{
     const saved = JSON.parse(localStorage.getItem('ggt-active-session')||'{}');
@@ -1286,7 +1458,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     if(elapsed > 4*3600){ clearPersistedSession(); return; }
     const min = Math.floor(elapsed/60);
     if(confirm(`Laufende Sitzung "${saved.projekt||'?'}" (vor ${min} Min gestartet) fortsetzen?`)){
-      restoreSession();
+      await restoreSession();
     } else {
       clearPersistedSession();
     }
