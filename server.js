@@ -56,7 +56,7 @@ app.get('/version', (req, res) => {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit'
   });
-  res.json({ version: '2.1', deployed });
+  res.json({ version: '3.0', deployed });
 });
 
 app.use((req, res, next) => {
@@ -302,7 +302,10 @@ app.post('/transkribieren', async (req, res) => {
     const s = sessions[id];
     if (!s) return res.status(404).json({ error: 'Sitzung nicht gefunden' });
     const audioBuffer = await fs.readFile(s.audioPath);
-    const audioBase64 = 'data:audio/webm;base64,' + audioBuffer.toString('base64');
+    const audioExt = path.extname(s.audioPath).slice(1).toLowerCase();
+    const mimeMap = { m4a:'audio/mp4', mp4:'audio/mp4', webm:'audio/webm', wav:'audio/wav', aac:'audio/aac', ogg:'audio/ogg' };
+    const audioMime = mimeMap[audioExt] || 'audio/webm';
+    const audioBase64 = `data:${audioMime};base64,` + audioBuffer.toString('base64');
     const whisperPrompt = 'Giovanoli, Dario, Heizung, Sanitär, Lüftung, Haustechnik, HLKS, Baustelle, Pendenzen, Wärmepumpe, Heizkörper, Estrich, Rohrleitung, Armatur, Ventil, Pumpe, Schacht, Unterlagsboden, Abpressprotokoll. Grüezi mitenand, mir fangid jetzt a mit de Bausitzung.';
     const output = await replicate.run(
       'thomasmol/whisper-diarization:1495a9cddc83b2203b0d8d3516e38b80fd1572ebc4bc5700ac1da56a9b3ed886',

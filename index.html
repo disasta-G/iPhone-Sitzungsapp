@@ -226,6 +226,33 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .btn-upload { width: 100%; padding: 13px; background: transparent; border: 0.5px solid var(--border2); border-radius: var(--radius); font-size: 15px; font-weight: 500; color: var(--text2); font-family: 'DM Sans', sans-serif; cursor: pointer; margin-top: 10px; }
 .btn-upload:active { background: var(--bg3); }
 .upload-hint { font-size: 11px; color: var(--text3); text-align: center; margin-top: 6px; padding: 0 20px; line-height: 1.4; }
+
+/* === External Recorder Mode === */
+.launch-body { flex: 1 1 0; min-height: 0; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; -webkit-overflow-scrolling: touch; }
+.launch-step { display: flex; gap: 14px; align-items: flex-start; }
+.launch-num { width: 28px; height: 28px; border-radius: 50%; background: var(--red-dim); color: var(--red); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+.launch-text strong { font-size: 15px; font-weight: 500; color: var(--text); display: block; margin-bottom: 4px; }
+.launch-text p { font-size: 13px; color: var(--text2); line-height: 1.5; margin: 0; }
+.launch-footer { padding: 12px 20px max(28px, env(safe-area-inset-bottom, 28px)); display: flex; flex-direction: column; gap: 8px; }
+.rec-mode-hint { font-size: 11px; color: var(--blue); margin-top: 2px; font-weight: 500; }
+.foto-gallery-btn { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 12px; border: 0.5px dashed var(--border2); border-radius: var(--radius-sm); justify-content: center; margin-top: 6px; }
+.foto-gallery-btn span { font-size: 13px; color: var(--text2); }
+.foto-gallery-btn input { display: none; }
+.upload-body { flex: 1 1 0; min-height: 0; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; -webkit-overflow-scrolling: touch; }
+.upload-instructions { background: var(--bg3); border-radius: var(--radius); padding: 14px 16px; }
+.upload-instr-title { font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--text3); margin-bottom: 10px; }
+.ui-step { font-size: 13px; color: var(--text2); padding: 5px 0; display: flex; gap: 10px; align-items: center; }
+.ui-num { width: 20px; height: 20px; border-radius: 50%; background: var(--blue-dim); color: var(--blue); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; flex-shrink: 0; }
+.upload-dropzone { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 28px; border: 1.5px dashed var(--border2); border-radius: var(--radius); cursor: pointer; background: var(--bg2); transition: background .15s; }
+.upload-dropzone:active { background: var(--bg3); }
+.upload-dropzone input { display: none; }
+.upload-dropzone svg { color: var(--text3); }
+.upload-dropzone span { font-size: 14px; color: var(--text2); font-weight: 500; }
+.upload-chosen { padding: 12px 14px; background: var(--green-dim); border: 0.5px solid var(--green); border-radius: var(--radius-sm); font-size: 13px; color: var(--green); display: flex; align-items: center; gap: 8px; }
+.upload-photos-section .upload-section-label { font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--text3); margin-bottom: 8px; display: block; }
+.upload-footer { padding: 12px 20px max(28px, env(safe-area-inset-bottom, 28px)); display: flex; flex-direction: column; gap: 8px; }
+.btn-voice-memos { width: 100%; padding: 12px; background: transparent; border: 0.5px solid rgba(40,105,179,0.35); border-radius: var(--radius); font-size: 14px; font-weight: 500; color: var(--blue); font-family: 'DM Sans', sans-serif; cursor: pointer; }
+.btn-voice-memos:active { background: var(--blue-dim); }
 </style>
 </head>
 <body>
@@ -250,8 +277,50 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   </div>
   <button class="btn-start" id="btn-start" onclick="handleStart()">Sitzung starten</button>
   <input type="file" id="inp-audio-file" accept=".m4a,.mp4,.wav,.aac,.ogg,audio/*" style="display:none" onchange="onAudioFileSelected(this)">
-  <button class="btn-upload" onclick="document.getElementById('inp-audio-file').click()">Aufnahme hochladen</button>
-  <div class="upload-hint">Sprachmemos → Teilen → In Dateien sichern → iCloud Drive</div>
+  <button class="btn-upload" onclick="document.getElementById('inp-audio-file').click()">Direkt hochladen (ohne Sitzung)</button>
+  <div class="upload-hint">Voice Memos → Teilen → In Dateien sichern → hier auswählen</div>
+</div>
+
+<!-- LAUNCH -->
+<div class="screen" id="s-launch">
+  <div class="screen-header">
+    <div class="wordmark">Sitzung vorbereiten</div>
+    <div class="h-title">Aufnahme<br><span>starten</span></div>
+  </div>
+  <div class="launch-body">
+    <div class="launch-step">
+      <div class="launch-num">1</div>
+      <div class="launch-text">
+        <strong>Voice Memos öffnen</strong>
+        <p>Tippe unten auf «Voice Memos öffnen» — iOS wechselt in die Sprachrekorder-App.</p>
+      </div>
+    </div>
+    <div class="launch-step">
+      <div class="launch-num">2</div>
+      <div class="launch-text">
+        <strong>Aufnahme starten</strong>
+        <p>Drücke den roten Aufnahme-Button in Voice Memos. Die Aufnahme läuft dann weiter — auch wenn du zurückwechselst.</p>
+      </div>
+    </div>
+    <div class="launch-step">
+      <div class="launch-num">3</div>
+      <div class="launch-text">
+        <strong>Zurück zur App für Fotos & Pendenzen</strong>
+        <p>Wechsle hierher zurück um Pendenzen abzuhaken und Fotos hinzuzufügen. Die Sitzungs-Uhr läuft automatisch mit.</p>
+      </div>
+    </div>
+    <div class="launch-step">
+      <div class="launch-num">4</div>
+      <div class="launch-text">
+        <strong>Nach der Sitzung: Aufnahme hochladen</strong>
+        <p>Voice Memos → Aufnahme antippen → Teilen → «In Dateien sichern» → iCloud Drive. Dann hier hochladen.</p>
+      </div>
+    </div>
+  </div>
+  <div class="launch-footer">
+    <button class="btn-start" onclick="openVoiceMemos()">Voice Memos öffnen &amp; Sitzung starten</button>
+    <button class="btn-secondary" onclick="show('s-setup')">Zurück</button>
+  </div>
 </div>
 
 <!-- RECORD -->
@@ -261,6 +330,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
     <div>
       <div class="rec-project" id="rec-proj">Projekt</div>
       <div class="rec-sub" id="rec-sub">—</div>
+      <div class="rec-mode-hint" id="rec-mode-hint" style="display:none">&#9679; Voice Memos läuft extern</div>
     </div>
     <div class="rec-pill">
       <div class="rec-dot"></div>
@@ -278,8 +348,13 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
     <div class="foto-area">
       <label class="foto-trigger">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="20" height="16" rx="2"/><circle cx="12" cy="12" r="4"/><path d="M8 4l1.5-2h5L16 4"/></svg>
-        <span>Foto zur Sitzung hinzufügen</span>
+        <span>Kamera — Foto aufnehmen</span>
         <input type="file" accept="image/*" capture="environment" multiple onchange="addPhotos(this)">
+      </label>
+      <label class="foto-gallery-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
+        <span>Aus Galerie wählen</span>
+        <input type="file" accept="image/*" multiple onchange="addPhotos(this)">
       </label>
       <div class="foto-thumbs" id="foto-thumbs"></div>
     </div>
@@ -293,6 +368,42 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
         <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- UPLOAD (External Recorder Mode) -->
+<div class="screen" id="s-upload">
+  <div class="screen-header">
+    <div class="wordmark">Schritt 1 von 2</div>
+    <div class="h-title">Aufnahme<br><span>hochladen</span></div>
+  </div>
+  <div class="upload-body">
+    <div class="upload-instructions">
+      <div class="upload-instr-title">Aufnahme aus Voice Memos exportieren</div>
+      <div class="ui-step"><div class="ui-num">1</div>Voice Memos öffnen — Aufnahme stoppen</div>
+      <div class="ui-step"><div class="ui-num">2</div>Aufnahme antippen → Teilen <strong>↑</strong></div>
+      <div class="ui-step"><div class="ui-num">3</div>«In Dateien sichern» → iCloud Drive</div>
+      <div class="ui-step"><div class="ui-num">4</div>Hier unten Datei auswählen</div>
+    </div>
+    <button class="btn-voice-memos" onclick="window.location.href='voicememos://'">↩ Zurück zu Voice Memos</button>
+    <label class="upload-dropzone">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <span>Audio-Datei auswählen (.m4a)</span>
+      <input type="file" id="inp-upload-audio" accept=".m4a,.mp4,.wav,.aac,.ogg,audio/*" onchange="onUploadAudioSelected(this)">
+    </label>
+    <div id="upload-chosen" class="upload-chosen" style="display:none"></div>
+    <div class="upload-photos-section">
+      <span class="upload-section-label">Fotos (<span id="upload-photo-count">0</span>) — nachträglich hinzufügen</span>
+      <div class="foto-thumbs" id="upload-foto-thumbs"></div>
+      <label class="foto-gallery-btn" style="margin-top:4px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
+        <span>Fotos hinzufügen</span>
+        <input type="file" accept="image/*" multiple onchange="addPhotosPostSession(this)">
+      </label>
+    </div>
+  </div>
+  <div class="upload-footer">
+    <button class="btn-start" id="btn-upload-continue" disabled onclick="continueFromUpload()">Weiter zur Auswertung</button>
   </div>
 </div>
 
@@ -389,7 +500,9 @@ const S = {
   pendenzList:[], checkedPends:[], hiddenPends:[],
   sitzungsId:null,
   allTopics:[], resultMd:'', resultEmailMd:'', resultEmailHtml:'',
-  connected:false, connCollapsed:false
+  connected:false, connCollapsed:false,
+  // External Recorder Mode
+  mode:'intern', sessionStartTime:null, finalSeconds:0
 };
 
 function show(id){ document.querySelectorAll('.screen').forEach(e=>e.classList.remove('active')); document.getElementById(id).classList.add('active'); }
@@ -525,8 +638,8 @@ async function startSession(){
     S.pendenzList = d.pendenzen || [];
   }catch(e){ S.pendenzList = []; }
   renderPendenzen();
-  await startRecording();
-  show('s-record');
+  S.mode = 'extern';
+  show('s-launch');
 }
 
 function renderPendenzen(){
@@ -599,8 +712,16 @@ function releaseWakeLock(){
   if(wakeLock){ wakeLock.release(); wakeLock = null; }
 }
 document.addEventListener('visibilitychange', async()=>{
-  if(document.visibilityState==='visible' && S.mediaRecorder && S.mediaRecorder.state==='recording'){
-    await requestWakeLock();
+  if(document.visibilityState==='visible'){
+    if(S.mode === 'extern' && S.sessionStartTime){
+      // Timer nach App-Wechsel resynchronisieren
+      const elapsed = Math.floor((Date.now()-S.sessionStartTime)/1000);
+      document.getElementById('rec-timer').textContent = fmtTimer(elapsed);
+      if(!S.timerInt) startExternTimer();
+    }
+    if(S.mediaRecorder && S.mediaRecorder.state==='recording'){
+      await requestWakeLock();
+    }
   }
 });
 
@@ -683,15 +804,19 @@ function stopAudioPulse(){
 }
 
 function addPhotos(input){
+  const elapsed = S.sessionStartTime
+    ? Math.floor((Date.now()-S.sessionStartTime)/1000)
+    : S.seconds;
   Array.from(input.files).forEach(f=>{
-    S.photos.push(f); S.photoTimestamps.push(S.seconds);
+    S.photos.push(f); S.photoTimestamps.push(elapsed);
     const url = URL.createObjectURL(f);
     const img = document.createElement('img');
     img.src = url; img.className = 'foto-thumb';
-    img.title = 'Bei '+fmtTimer(S.seconds);
+    img.title = 'Bei '+fmtTimer(elapsed);
     document.getElementById('foto-thumbs').appendChild(img);
   });
-  toast('Foto bei '+fmtTimer(S.seconds));
+  persistSession();
+  toast('Foto bei '+fmtTimer(elapsed));
   input.value = '';
 }
 
@@ -728,12 +853,17 @@ function addPhotos(input){
       fill().style.opacity='1';
       lbl().style.opacity='0';
       done().style.opacity='1';
-      clearInterval(S.timerInt);
-      stopAudioPulse();
-      releaseWakeLock();
-      if(S.audioStream) S.audioStream.getTracks().forEach(t=>t.stop());
-      if(S.mediaRecorder && S.mediaRecorder.state!=='inactive'){ S.mediaRecorder.stop(); }
-      setTimeout(endRecordingFlow,600);
+      clearInterval(S.timerInt); S.timerInt = null;
+      S.finalSeconds = S.sessionStartTime ? Math.floor((Date.now()-S.sessionStartTime)/1000) : S.seconds;
+      if(S.mode !== 'extern'){
+        stopAudioPulse();
+        releaseWakeLock();
+        if(S.audioStream) S.audioStream.getTracks().forEach(t=>t.stop());
+        if(S.mediaRecorder && S.mediaRecorder.state!=='inactive'){ S.mediaRecorder.stop(); }
+        setTimeout(endRecordingFlow,600);
+      } else {
+        setTimeout(()=>showUploadScreen(),600);
+      }
     } else {
       thumb().style.transition='left .2s ease';
       fill().style.transition='width .2s ease, opacity .2s ease';
@@ -900,6 +1030,7 @@ async function processSession(){
     const topics = await api('/themen?id='+S.sitzungsId, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({erledigte, anwesende: S.anwesende})});
     S.allTopics = topics.topics || [];
     stepDone(4);
+    clearPersistedSession();
     setTimeout(()=>{ renderSelection(); show('s-select'); }, 400);
   }catch(e){
     toast('Fehler: '+e.message, true);
@@ -1004,6 +1135,8 @@ function updateObsidianLink(){
 }
 
 function newSession(){
+  clearPersistedSession();
+  S.mode = 'intern'; S.sessionStartTime = null; S.finalSeconds = 0;
   S.audioChunks = []; S.photos = []; S.photoTimestamps = [];
   S.pendenzList = []; S.checkedPends = []; S.hiddenPends = [];
   S.allTopics = []; S.resultMd = ''; S.resultEmailMd = ''; S.resultEmailHtml = '';
@@ -1018,6 +1151,147 @@ function newSession(){
   document.getElementById('inp-projekt').value = '';
   show('s-setup');
 }
+
+// === External Recorder Mode ===
+
+function openVoiceMemos(){
+  S.sessionStartTime = Date.now();
+  persistSession();
+  startExternTimer();
+  document.getElementById('rec-proj').textContent = S.projekt;
+  document.getElementById('rec-sub').textContent = S.anwesende + ' · ' + S.datum;
+  const hint = document.getElementById('rec-mode-hint');
+  if(hint) hint.style.display = 'block';
+  show('s-record');
+  // URL-Schema öffnet Voice Memos ohne die PWA zu verlassen
+  window.location.href = 'voicememos://';
+}
+
+function startExternTimer(){
+  if(S.timerInt) clearInterval(S.timerInt);
+  const tick = ()=>{
+    const elapsed = Math.floor((Date.now()-S.sessionStartTime)/1000);
+    document.getElementById('rec-timer').textContent = fmtTimer(elapsed);
+  };
+  tick();
+  S.timerInt = setInterval(tick, 1000);
+}
+
+function persistSession(){
+  if(!S.sessionStartTime) return;
+  try{
+    localStorage.setItem('ggt-active-session', JSON.stringify({
+      v:1, mode:S.mode, startTime:S.sessionStartTime,
+      projekt:S.projekt, ordner:S.ordner, anwesende:S.anwesende,
+      datum:S.datum, datumFile:S.datumFile, zeit:S.zeit,
+      pendenzList:S.pendenzList, participantsList:S.participantsList,
+      checkedPends:S.checkedPends, hiddenPends:S.hiddenPends,
+      photoTimestamps:S.photoTimestamps
+    }));
+  }catch(e){}
+}
+
+function clearPersistedSession(){ localStorage.removeItem('ggt-active-session'); }
+function hasPersistedSession(){ return !!localStorage.getItem('ggt-active-session'); }
+
+function restoreSession(){
+  try{
+    const saved = JSON.parse(localStorage.getItem('ggt-active-session')||'{}');
+    if(!saved.startTime) return;
+    Object.assign(S, {
+      mode: saved.mode||'extern',
+      sessionStartTime: saved.startTime,
+      projekt: saved.projekt||'', ordner: saved.ordner||'',
+      anwesende: saved.anwesende||'', datum: saved.datum||'',
+      datumFile: saved.datumFile||'', zeit: saved.zeit||'',
+      pendenzList: saved.pendenzList||[],
+      participantsList: saved.participantsList||[],
+      checkedPends: saved.checkedPends||[],
+      hiddenPends: saved.hiddenPends||[],
+      photoTimestamps: saved.photoTimestamps||[],
+      photos:[], audioChunks:[]
+    });
+    document.getElementById('rec-proj').textContent = S.projekt;
+    document.getElementById('rec-sub').textContent = S.anwesende + ' · ' + S.datum;
+    const hint = document.getElementById('rec-mode-hint');
+    if(hint) hint.style.display = S.mode==='extern' ? 'block' : 'none';
+    document.getElementById('foto-thumbs').innerHTML = '';
+    renderPendenzen();
+    startExternTimer();
+    show('s-record');
+    toast('Sitzung wiederhergestellt');
+  }catch(e){ clearPersistedSession(); }
+}
+
+// Upload-Screen Funktionen
+function showUploadScreen(){
+  // Audio-Wahl zurücksetzen
+  S.uploadedFile = null;
+  const chosen = document.getElementById('upload-chosen');
+  if(chosen) chosen.style.display = 'none';
+  const btn = document.getElementById('btn-upload-continue');
+  if(btn) btn.disabled = true;
+  // Bestehende Fotos anzeigen
+  const thumbs = document.getElementById('upload-foto-thumbs');
+  if(thumbs){ thumbs.innerHTML = ''; S.photos.forEach(f=>{ const u=URL.createObjectURL(f); const i=document.createElement('img'); i.src=u; i.className='foto-thumb'; thumbs.appendChild(i); }); }
+  const cnt = document.getElementById('upload-photo-count');
+  if(cnt) cnt.textContent = S.photos.length;
+  show('s-upload');
+}
+
+function onUploadAudioSelected(input){
+  const file = input.files[0];
+  if(!file) return;
+  S.uploadedFile = file;
+  const chosen = document.getElementById('upload-chosen');
+  if(chosen){ chosen.textContent = '✓  ' + file.name; chosen.style.display = 'flex'; }
+  const btn = document.getElementById('btn-upload-continue');
+  if(btn) btn.disabled = false;
+  toast('Datei bereit: ' + file.name);
+  input.value = '';
+}
+
+function addPhotosPostSession(input){
+  const total = input.files.length;
+  const base = S.finalSeconds || 0;
+  Array.from(input.files).forEach((f,idx)=>{
+    S.photos.push(f);
+    // Fotos gleichmässig über Sitzungsdauer verteilen
+    const ts = base > 0 ? Math.round(base*(idx+1)/(total+1)) : 0;
+    S.photoTimestamps.push(ts);
+    const url = URL.createObjectURL(f);
+    const img = document.createElement('img');
+    img.src = url; img.className = 'foto-thumb';
+    const thumbs = document.getElementById('upload-foto-thumbs');
+    if(thumbs) thumbs.appendChild(img);
+  });
+  const cnt = document.getElementById('upload-photo-count');
+  if(cnt) cnt.textContent = S.photos.length;
+  toast(total + ' Foto' + (total>1?'s':'') + ' hinzugefügt');
+  input.value = '';
+}
+
+function continueFromUpload(){
+  if(!S.uploadedFile){ toast('Bitte zuerst Audio-Datei auswählen', true); return; }
+  endRecordingFlow();
+}
+
+// Recovery beim App-Start
+document.addEventListener('DOMContentLoaded', ()=>{
+  if(!hasPersistedSession()) return;
+  try{
+    const saved = JSON.parse(localStorage.getItem('ggt-active-session')||'{}');
+    if(!saved.startTime) return;
+    const elapsed = Math.floor((Date.now()-saved.startTime)/1000);
+    if(elapsed > 4*3600){ clearPersistedSession(); return; }
+    const min = Math.floor(elapsed/60);
+    if(confirm(`Laufende Sitzung "${saved.projekt||'?'}" (vor ${min} Min gestartet) fortsetzen?`)){
+      restoreSession();
+    } else {
+      clearPersistedSession();
+    }
+  }catch(e){ clearPersistedSession(); }
+});
 </script>
 </body>
 </html>
