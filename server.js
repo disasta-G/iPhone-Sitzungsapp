@@ -15,23 +15,23 @@ const fsSync = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 const Anthropic = require('@anthropic-ai/sdk');
-const { AssemblyAI } = require('assemblyai');
+const Groq = require('groq-sdk');
 
 const app = express();
 const SERVER_START = new Date();
 const PORT = process.env.PORT || 3001;
 const VAULT = process.env.VAULT_PATH;
 const API_SECRET = process.env.API_SECRET;
-const ASSEMBLYAI_KEY = process.env.ASSEMBLYAI_KEY;
+const GROQ_KEY = process.env.GROQ_KEY;
 const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
 
-if (!VAULT || !API_SECRET || !ASSEMBLYAI_KEY || !ANTHROPIC_KEY) {
-  console.error('FEHLER: VAULT_PATH, API_SECRET, ASSEMBLYAI_KEY, ANTHROPIC_KEY müssen gesetzt sein');
+if (!VAULT || !API_SECRET || !GROQ_KEY || !ANTHROPIC_KEY) {
+  console.error('FEHLER: VAULT_PATH, API_SECRET, GROQ_KEY, ANTHROPIC_KEY müssen gesetzt sein');
   process.exit(1);
 }
 
 const anthropic = new Anthropic({ apiKey: ANTHROPIC_KEY });
-const assemblyClient = new AssemblyAI({ apiKey: ASSEMBLYAI_KEY });
+const groqClient = new Groq({ apiKey: GROQ_KEY });
 
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 if (!fsSync.existsSync(UPLOAD_DIR)) fsSync.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -301,23 +301,32 @@ app.post('/transkribieren', async (req, res) => {
     const id = req.query.id;
     const s = sessions[id];
     if (!s) return res.status(404).json({ error: 'Sitzung nicht gefunden' });
-    console.log(`[transkribieren] AssemblyAI Start: ${s.audioPath}`);
-    const transcript = await assemblyClient.transcripts.transcribe({
-      audio: s.audioPath,
-      language_code: 'de',
-      speaker_labels: true,
-      punctuate: true,
-      format_text: true,
+    const fileSizeMB = (await fs.stat(s.audioPath)).size / 1024 / 1024;
+    if (fileSizeMB > 24) throw new Error(`Audio-Datei zu gross (${fileSizeMB.toFixed(1)} MB > 24 MB). Bitte kürzen.`);
+    const whisperPrompt = [
+      'Unterlagsboden, Abpressprotokoll, Kanalisation, HLKS, Kältekoordination, Leitungstrasse,',
+      'Bodenheizung, Brandabschnitt, Fussbodenheizung, Heizkörper, Unterflurkonvektor,',
+      'Rohrnetzberechnung, Wärmebedarf, Energienachweis, VAV, KVS-Regler,',
+      'Dario Giovanoli, Giovanoli Gebäudetechnik.',
+      'Guten Tag zusammen. Wir besprechen heute das Projekt.'
+    ].join(' ');
+    console.log(`[transkribieren] Groq whisper-large-v3 Start (${fileSizeMB.toFixed(1)} MB)`);
+    const groqResp = await groqClient.audio.transcriptions.create({
+      file: fsSync.createReadStream(s.audioPath),
+      model: 'whisper-large-v3',
+      language: 'de',
+      prompt: whisperPrompt,
+      response_format: 'verbose_json',
+      timestamp_granularities: ['segment'],
     });
-    if (transcript.status === 'error') throw new Error(`AssemblyAI: ${transcript.error}`);
-    const segments = (transcript.utterances || []).map(u => ({
-      speaker: `SPEAKER_${u.speaker}`,
-      text: u.text,
-      start: u.start / 1000,
-      end: u.end / 1000,
+    const segments = (groqResp.segments || []).map(seg => ({
+      speaker: 'SPRECHER',
+      text: seg.text,
+      start: seg.start,
+      end: seg.end,
     }));
     s.transkript = { segments };
-    console.log(`[transkribieren] AssemblyAI OK: ${segments.length} Utterances`);
+    console.log(`[transkribieren] Groq OK: ${segments.length} Segmente`);
 
     // Claude bereinigt Schweizerdeutsch → Hochdeutsch
     const rohText = segments
