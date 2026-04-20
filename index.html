@@ -304,34 +304,34 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
     <div class="launch-step">
       <div class="launch-num">1</div>
       <div class="launch-text">
-        <strong>Voice Memos öffnen</strong>
-        <p>Tippe unten auf «Voice Memos öffnen» — iOS wechselt in die Sprachrekorder-App.</p>
+        <strong>Tippe «Sitzung starten»</strong>
+        <p>Die Sitzungs-Uhr startet. Wechsle dann manuell zu Voice Memos (App Switcher oder Home Screen).</p>
       </div>
     </div>
     <div class="launch-step">
       <div class="launch-num">2</div>
       <div class="launch-text">
-        <strong>Aufnahme starten</strong>
-        <p>Drücke den roten Aufnahme-Button in Voice Memos. Die Aufnahme läuft dann weiter — auch wenn du zurückwechselst.</p>
+        <strong>Aufnahme in Voice Memos starten</strong>
+        <p>Roten Aufnahme-Button drücken. Die Aufnahme läuft weiter — auch wenn du zurückwechselst.</p>
       </div>
     </div>
     <div class="launch-step">
       <div class="launch-num">3</div>
       <div class="launch-text">
-        <strong>Zurück zur App für Fotos & Pendenzen</strong>
-        <p>Wechsle hierher zurück um Pendenzen abzuhaken und Fotos hinzuzufügen. Die Sitzungs-Uhr läuft automatisch mit.</p>
+        <strong>Zurück zur App für Fotos &amp; Pendenzen</strong>
+        <p>App Switcher → GGT Notizen. Die Uhr läuft automatisch mit.</p>
       </div>
     </div>
     <div class="launch-step">
       <div class="launch-num">4</div>
       <div class="launch-text">
         <strong>Nach der Sitzung: Aufnahme hochladen</strong>
-        <p>Voice Memos → Aufnahme antippen → Teilen → «In Dateien sichern» → iCloud Drive. Dann hier hochladen.</p>
+        <p>Voice Memos → Aufnahme antippen → Teilen → «In Dateien sichern» → iCloud Drive.</p>
       </div>
     </div>
   </div>
   <div class="launch-footer">
-    <a class="btn-start" href="voicememos://" onclick="openVoiceMemos(event)">Voice Memos öffnen &amp; Sitzung starten</a>
+    <button class="btn-start" onclick="openVoiceMemos()">Sitzung starten</button>
     <button class="btn-secondary" onclick="show('s-setup')">Zurück</button>
   </div>
 </div>
@@ -1171,8 +1171,7 @@ function newSession(){
 
 // === External Recorder Mode ===
 
-function openVoiceMemos(event){
-  // event.preventDefault() NICHT aufrufen — der <a href="voicememos://"> erledigt die Navigation
+function openVoiceMemos(){
   S.sessionStartTime = Date.now();
   persistSession();
   startExternTimer();
@@ -1180,8 +1179,7 @@ function openVoiceMemos(event){
   document.getElementById('rec-sub').textContent = S.anwesende + ' · ' + S.datum;
   const hint = document.getElementById('rec-mode-hint');
   if(hint) hint.style.display = 'block';
-  // Kurze Verzögerung: iOS verarbeitet erst den Link, dann wechseln wir den Screen
-  setTimeout(() => show('s-record'), 80);
+  show('s-record');
 }
 
 function startExternTimer(){
