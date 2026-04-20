@@ -306,10 +306,22 @@ app.post('/transkribieren', async (req, res) => {
     const mimeMap = { m4a:'audio/mp4', mp4:'audio/mp4', webm:'audio/webm', wav:'audio/wav', aac:'audio/aac', ogg:'audio/ogg' };
     const audioMime = mimeMap[audioExt] || 'audio/webm';
     const audioBase64 = `data:${audioMime};base64,` + audioBuffer.toString('base64');
-    const whisperPrompt = 'Giovanoli, Dario, Heizung, Sanitär, Lüftung, Haustechnik, HLKS, Baustelle, Pendenzen, Wärmepumpe, Heizkörper, Estrich, Rohrleitung, Armatur, Ventil, Pumpe, Schacht, Unterlagsboden, Abpressprotokoll. Grüezi mitenand, mir fangid jetzt a mit de Bausitzung.';
+    const whisperPrompt = [
+      'Giovanoli, Dario, Heizung, Sanitär, Lüftung, Haustechnik, HLKS, Baustelle, Pendenzen,',
+      'Wärmepumpe, Heizkörper, Estrich, Rohrleitung, Armatur, Ventil, Pumpe, Schacht,',
+      'Unterlagsboden, Abpressprotokoll, Fussbodenheizung, Verteiler, Speicher, Boiler,',
+      'Luftauslass, Zuluft, Abluft, Kanalisation, Lüftungskanal, Heizkreis, Druckverlust.',
+      'Grüezi mitenand. Mir fangid jetzt a mit de Bausitzung.',
+      'I ha de Plan scho aglueget, das isch no nid gmacht worde.',
+      'Mir müend no de Estrich abdrucke, de Anschluss isch no nid fertig.',
+      'Wer isch derfür verantwortlich? Das chunnt nächste Wuche.',
+      'Mir händ no e Pendenz offe, das mues no abgchlare werde.',
+      'De Boiler isch scho installiert, mir warte no uf d Inbetriebnahme.',
+      'Chönd mir das bis Mäntig erledige? Jo, das isch kei Problem.'
+    ].join(' ');
     const output = await replicate.run(
       'thomasmol/whisper-diarization:1495a9cddc83b2203b0d8d3516e38b80fd1572ebc4bc5700ac1da56a9b3ed886',
-      { input: { file_string: audioBase64, language: 'de', prompt: whisperPrompt } }
+      { input: { file_string: audioBase64, language: 'de', prompt: whisperPrompt, group_segments: true } }
     );
     s.transkript = output;
 
@@ -323,15 +335,30 @@ app.post('/transkribieren', async (req, res) => {
         const bereinigtResp = await anthropic.messages.create({
           model: 'claude-opus-4-6',
           max_tokens: calcMaxTokens(rohText),
-          system: `Du bist ein Übersetzer für Schweizerdeutsch und Dialekt.
-Forme den transkribierten Gesprächstext in korrektes, natürliches Schriftdeutsch um.
+          system: `Du bist ein Experte für Schweizerdeutsch-Transkriptionen im Bauwesen.
+Der Text stammt aus einer automatischen Whisper-Transkription einer Schweizerdeutschen Bausitzung — er enthält Dialekt, Erkennungsfehler und Vermischungen.
+
+AUFGABE: Forme den Text in korrektes, natürliches Schriftdeutsch um.
+
+HÄUFIGE SCHWEIZERDEUTSCH → SCHRIFTDEUTSCH MUSTER:
+- isch / isch gsi → ist / war
+- hät / het / händ → hat / haben
+- chund / chunnt / gah / gönd → kommt / gehen
+- mues / müend → muss / müssen
+- gid / git → gibt
+- scho / no / no nid → schon / noch / noch nicht
+- vo / uf / mit em / i de → von / auf / mit dem / in der
+- Wuche / Mäntig / Zischtig → Woche / Montag / Dienstag
+- abchlare / aluege / afange → klären / anschauen / anfangen
+- Nächste Wuche → Nächste Woche
+- Whisper schreibt oft hochdeutsche Wörter die klanglich ähnlich sind, aber falsch sind
+
 REGELN:
-- Alle Inhalte, Namen, Zahlen, Daten und Fachbegriffe exakt beibehalten.
-- Nur Sprache, Grammatik und Ausdruck anpassen — Sinn bleibt identisch.
+- Alle Namen, Zahlen, Daten, Maße und Fachbegriffe exakt beibehalten.
 - Sprecher-Labels [SPEAKER_XX] unverändert beibehalten.
-- Offensichtliche Whisper-Fehler bei Schweizer Fachbegriffen korrigieren.
-- Füllwörter (äh, mhm) weglassen wenn störend.
-- Nur den bereinigten Text zurückgeben, keine Erklärungen.`,
+- Sinn und Inhalt bleiben 100% identisch — nur Dialekt und Erkennungsfehler korrigieren.
+- Füllwörter (äh, mhm, ähm) weglassen.
+- Nur bereinigten Text zurückgeben, keine Erklärungen.`,
           messages: [{ role: 'user', content: rohText }]
         });
         s.transkriptBereinigt = bereinigtResp.content[0].text.trim();
