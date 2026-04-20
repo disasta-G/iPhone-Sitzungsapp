@@ -503,6 +503,15 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 <div class="toast" id="toast"></div>
 
 <script>
+// Cache-Buster: zwingt PWA zur Aktualisierung bei neuer Version
+(function(){
+  const V = '20260420-1';
+  if(localStorage.getItem('ggt-v') !== V){
+    localStorage.setItem('ggt-v', V);
+    if(performance.navigation?.type !== 1) location.reload(true);
+  }
+})();
+
 const S = {
   backend:'', secret:'',
   projekt:'', ordner:'', anwesende:'', datum:'', datumFile:'', zeit:'',
