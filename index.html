@@ -505,7 +505,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 <script>
 // Cache-Buster: zwingt PWA zur Aktualisierung bei neuer Version
 (function(){
-  const V = '20260420-1';
+  const V = '20260420-2';
   if(localStorage.getItem('ggt-v') !== V){
     localStorage.setItem('ggt-v', V);
     if(performance.navigation?.type !== 1) location.reload(true);
@@ -660,8 +660,17 @@ async function startSession(){
     S.pendenzList = d.pendenzen || [];
   }catch(e){ S.pendenzList = []; }
   renderPendenzen();
-  S.mode = 'extern';
-  show('s-launch');
+  try{
+    await startRecording();
+    S.mode = 'intern';
+    S.sessionStartTime = Date.now();
+    show('s-record');
+  }catch(e){
+    // Mikrofon verweigert → Voice Memos Fallback
+    S.mode = 'extern';
+    toast('Mikrofon nicht verfügbar — nutze Voice Memos', true);
+    show('s-launch');
+  }
 }
 
 function renderPendenzen(){
@@ -736,10 +745,18 @@ function releaseWakeLock(){
 document.addEventListener('visibilitychange', async()=>{
   if(document.visibilityState==='visible'){
     if(S.mode === 'extern' && S.sessionStartTime){
-      // Timer nach App-Wechsel resynchronisieren
       const elapsed = Math.floor((Date.now()-S.sessionStartTime)/1000);
       document.getElementById('rec-timer').textContent = fmtTimer(elapsed);
       if(!S.timerInt) startExternTimer();
+    }
+    if(S.mode === 'intern' && S.mediaRecorder && S.mediaRecorder.state === 'inactive' && S.audioStream){
+      // Kamera-Unterbrechung: Recorder neu starten und weiter sammeln
+      try{
+        const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus':'audio/webm';
+        S.mediaRecorder = new MediaRecorder(S.audioStream, {mimeType:mime});
+        S.mediaRecorder.ondataavailable = e=>{ if(e.data.size>0) S.audioChunks.push(e.data); };
+        S.mediaRecorder.start(1000);
+      }catch(e){ console.warn('[Recorder] Resume fehlgeschlagen:', e); }
     }
     if(S.mediaRecorder && S.mediaRecorder.state==='recording'){
       await requestWakeLock();
